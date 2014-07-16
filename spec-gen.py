@@ -138,6 +138,10 @@ def search_req(arg):
     if not native:
         return str(arg)
 
+    # Try all-lowercase variant - very common
+    if arg != arg.lower():
+        return search_req(arg.lower())
+
     print("WARNING: Failed to find a package providing '" + str(arg) + "' dependency\n")
     return ""
 
@@ -150,6 +154,9 @@ def search_file(arg):
     stream = p.readlines()
     if len(stream) > 0:
         return stream[0].split(":")[0]
+    elif arg != arg.lower():
+        # Try all-lowercase variant - very common
+        return search_file(arg.lower())
     else:
         print("WARNING: Failed to find a package providing '" + str(arg) + "' file\n")
         return ""
@@ -165,9 +172,9 @@ def funcCMakeLists(currname): # defines all commands from CMakeLists
         f.close()
 
     for line in lines:
-        line = line.lower()
+        lowerline = line.lower()
         arg = ""
-        if ("find_package" in line):
+        if ("find_package" in lowerline):
             indexForFirstLoop = line.find('(')
             indexForSpace = line.find(' ')
             indexForSecondLoop = line.find(')')
@@ -179,13 +186,12 @@ def funcCMakeLists(currname): # defines all commands from CMakeLists
             if (len(arg) > 0 and arg[-1] == ','):
                 indexForComma = arg.find(',')
                 arg = arg[0:indexForComma]
-            arg = arg.lower()
             # print(arg)
             provider = search_req(arg)
             if provider:
                 requiresCMake.append(provider)
 
-        if ("find_program" in line):
+        if ("find_program" in lowerline):
             indexForFirstLoop = line.find('(')
             indexForSpace = line.find(' ')
             indexForSecondLoop = line.find(')')
@@ -288,7 +294,7 @@ def createSpec(Name, Version, Summary, License,
         file.write("%files" + "\n")
         file.write("%{_bindir}/*" + "\n")
         file.write("%{_mandir}/man*/*" + "\n")
-        file.write("%{_datadir}/%{" + str(Name) + "}\n")
+        file.write("%{_datadir}/%{name}\n")
         file.write("%{_libdir}/*.so.*" + "\n")
         file.write("\n#----------------------------------------------------------------------------\n\n");
         file.write("%prep" + "\n")
