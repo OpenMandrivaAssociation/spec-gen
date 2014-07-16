@@ -116,12 +116,17 @@ def search_req(arg):
 
     providesHash[arg] = 1
 
-    pkgconfig = subprocess.call(["urpmq", "--whatprovides", "'pkgconfig(" + str(arg) + ")'"])
+    cmake = subprocess.call(["urpmq", "--whatprovides", "cmake(" + str(arg) + ")"])
+    if not cmake:
+        # pkgconfig is zero - this means that urpmq found something
+        return "cmake(" + str(arg) + ")"
+
+    pkgconfig = subprocess.call(["urpmq", "--whatprovides", "pkgconfig(" + str(arg) + ")"])
     if not pkgconfig:
         # pkgconfig is zero - this means that urpmq found something
         return "pkgconfig(" + str(arg) + ")"
 
-    pkgconfig = subprocess.call(["urpmq", "--whatprovides", "'pkgconfig(lib" + str(arg) + ")'"])
+    pkgconfig = subprocess.call(["urpmq", "--whatprovides", "pkgconfig(lib" + str(arg) + ")"])
     if not pkgconfig:
         # pkgconfig is zero - this means that urpmq found something
         return "pkgconfig(lib" + str(arg) + ")"
