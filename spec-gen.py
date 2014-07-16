@@ -288,7 +288,7 @@ def createSpec(Name, Version, Summary, License,
         file.write("%files" + "\n")
         file.write("%{_bindir}/*" + "\n")
         file.write("%{_mandir}/man*/*" + "\n")
-        file.write("%{_datadir/%{" + str(Name) + "}\n")
+        file.write("%{_datadir}/%{" + str(Name) + "}\n")
         file.write("%{_libdir}/*.so.*" + "\n")
         file.write("\n#----------------------------------------------------------------------------\n\n");
         file.write("%prep" + "\n")
@@ -303,9 +303,9 @@ def createSpec(Name, Version, Summary, License,
         file.write("\n")
         file.write("%install" + "\n")
         if (isThereCMake):
-            file.write("%makeintstall_std -C build" + "\n")
+            file.write("%makeinstall_std -C build" + "\n")
         elif (isThereConfigure):
-            file.write("%makeintstall_std" + "\n")
+            file.write("%makeinstall_std" + "\n")
         file.write("\n")
 
     except:
