@@ -289,7 +289,7 @@ def createSpec(Name, Version, Summary, License,
         file.write("License:\t" + str(License) + "\n")
         file.write("Group:\t\t" + str(Group) + "\n")
         file.write("Url:\t\t" + str(URL) + "\n")
-        file.write("Source0:\t" + os.path.basename(source_tarball) + "\n")
+        file.write("Source0:\t" + os.path.basename(source_tarball).replace(Name, "%{name}").replace(Version, "%{version}") + "\n")
         file.write("\n")
         file.write(BuildReq)
         file.write("\n")
