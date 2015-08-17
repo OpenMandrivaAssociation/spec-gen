@@ -11,6 +11,7 @@ import argparse
 import tempfile
 import subprocess
 import shutil
+import string
 
 # Requirements extracted from CMake files
 requiresCMake = []
@@ -91,7 +92,7 @@ def defineNameAndVersion(path, formatType):
     if (formatType >= 2 and formatType <= 4):
          versionM = nameM[1].split(".tar")
     else:
-         versionM = nameM[1].split(".zi")
+         versionM = nameM[1].split(".zip")
     Version = versionM[0]
     # deleting path in name
     myListName = list(name)
@@ -116,9 +117,18 @@ def search_req(arg):
 
     providesHash[arg] = 1
 
+    # Special case: explicit pkgconfig requirement is requested
+    if arg.startswith("pkgconfig"):
+        pkgconfig = subprocess.call(["urpmq", "--whatprovides", str(arg)])
+        if not pkgconfig:
+            # pkgconfig is zero - this means that urpmq found something
+            return str(arg)
+        else:
+            return ""
+
     cmake = subprocess.call(["urpmq", "--whatprovides", "cmake(" + str(arg) + ")"])
     if not cmake:
-        # pkgconfig is zero - this means that urpmq found something
+        # cmake is zero - this means that urpmq found something
         return "cmake(" + str(arg) + ")"
 
     pkgconfig = subprocess.call(["urpmq", "--whatprovides", "pkgconfig(" + str(arg) + ")"])
@@ -176,10 +186,25 @@ def funcCMakeLists(currname): # defines all commands from CMakeLists
     finally:
         f.close()
 
+    mode = ""
     for line in lines:
         lowerline = line.lower()
         arg = ""
-        if ("find_package" in lowerline):
+        if mode == "inside_pkgcheck":
+            indexForSecondLoop = line.find(')')
+            if indexForSecondLoop >= 0:
+                mode = ""
+            else:
+                provider = search_req(line.strip())
+                if provider:
+                    requiresCMake.append(provider)
+        elif ("pkg_check_modules" in lowerline):
+            indexForFirstLoop = line.find('(')
+            indexForSecondLoop = line.find(')')
+            if indexForSecondLoop < 0:
+                mode = "inside_pkgcheck"
+                continue
+        elif ("find_package" in lowerline):
             indexForFirstLoop = line.find('(')
             indexForSpace = line.find(' ')
             indexForSecondLoop = line.find(')')
@@ -196,7 +221,7 @@ def funcCMakeLists(currname): # defines all commands from CMakeLists
             if provider:
                 requiresCMake.append(provider)
 
-        if ("find_program" in lowerline):
+        elif ("find_program" in lowerline):
             indexForFirstLoop = line.find('(')
             indexForSpace = line.find(' ')
             indexForSecondLoop = line.find(')')
@@ -214,6 +239,27 @@ def funcCMakeLists(currname): # defines all commands from CMakeLists
             if provider:
                 requiresCMake.append(provider)
 
+# Take a requirement string from PKG_CHECK_PKGS and return a set of required packages
+def processPkgReqs(req_str):
+    real_str = req_str.strip()
+    real_str = string.replace(real_str, "[", "")
+    real_str = string.replace(real_str, "]", "")
+    req_set_rough = real_str.split(" ")
+    req_set = []
+    skip_req = False
+    for req in req_set_rough:
+        if req == "\\" or req == ")":
+            continue
+        if req.startswith(">") or req.startswith("<") or req.startswith("="):
+            skip_req = True
+            continue
+        if skip_req:
+            skip_req = False
+            continue
+        if req > "":
+            req_set.append(req)
+    return req_set
+
 def funcConfigure(currname): # defines all commands from configure
     # Read mode opens a file for reading only.
     try:
@@ -224,8 +270,21 @@ def funcConfigure(currname): # defines all commands from configure
     finally:
         f.close()
     flag = False # in case if second argument is on the next line
+    flagPkg = False # in case if second and further arguments of PKG_CHECK_MODULES are on the next lines
     for line in lines:
         arg = ""
+        if (flagPkg):
+            all_args = processPkgReqs(line)
+            for arg in all_args:
+                if (arg != ""):
+                    provider = search_req("pkgconfig(" + str(arg) + ")")
+                    if provider:
+                        requiresConfigure.append(provider)
+            indexForSecondLoop = line.find(')')
+            if (indexForSecondLoop > 0):
+                flagPkg = False
+            continue
+
         if (flag):
             findFirstCommaNextLine = line.find(',')
             if (findFirstCommaNextLine != -1):
@@ -236,6 +295,7 @@ def funcConfigure(currname): # defines all commands from configure
                     if provider:
                         requiresConfigure.append(provider)
             flag = False
+            continue
         if ("AC_CHECK_PROG" in line):
             findAC_CHECK_PROG = line.find("AC_CHECK_PROG")
             indexForFirstSpace = line.find(' ', findAC_CHECK_PROG)
@@ -273,6 +333,25 @@ def funcConfigure(currname): # defines all commands from configure
             arg = "lib" + arg + ".so$"
             newCommand = "urpmf " + "'" + str(arg) + "' | grep -v debug | grep -vi uclibc"
             commandsConfigureLIB.append(newCommand)
+        elif ("PKG_CHECK_MODULES" in line):
+            findCHECK_MOD = line.find("PKG_CHECK_MODULES")
+            indexForFirstComma = line.find(',', findCHECK_MOD)
+            indexForSecondComma = line.find(',', indexForFirstComma + 1)
+            if (indexForFirstComma < indexForSecondComma):
+                arg = line[indexForFirstComma + 1 : indexForSecondComma]
+            elif (indexForFirstComma > 0 and indexForSecondComma == -1):
+                indexForSecondLoop = line.find(')')
+                if (indexForSecondLoop > 0):
+                    arg = line[indexForFirstComma + 1 : indexForSecondLoop]
+                else:
+                    flagPkg = True
+            all_args = processPkgReqs(arg)
+            for arg in all_args:
+                if (arg != ""):
+                    provider = search_req("pkgconfig(" + str(arg) + ")")
+                    if provider:
+                        requiresConfigure.append(provider)
+
 
 
 def createSpec(Name, Version, Summary, License,
@@ -387,6 +466,7 @@ if __name__ == '__main__':
 
     # Create temp folder and extract source tarball to it
     tempdir = tempfile.mkdtemp()
+    print(tempdir)
 
     try:
         # formatType:
