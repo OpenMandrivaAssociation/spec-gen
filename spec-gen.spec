@@ -1,6 +1,6 @@
 Name:		spec-gen
 Version:	1.0
-Release:	1
+Release:	2
 Summary:	ROSA RPM spec file generator
 Group:		System/Configuration/Packaging
 License:	GPLv2+
