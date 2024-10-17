@@ -4,7 +4,7 @@ Release:	5
 Summary:	ROSA RPM spec file generator
 Group:		System/Configuration/Packaging
 License:	GPLv2+
-Url:		http://wiki.rosalab.ru/en/index.php/spec-file-generator
+Url:		https://wiki.rosalab.ru/en/index.php/spec-file-generator
 Source0:	https://abf.io/soft/spec-gen-dev/blob/master/spec-gen.py
 BuildArch:	noarch
 BuildRequires:	python3
